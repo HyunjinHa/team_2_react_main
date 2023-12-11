@@ -3,6 +3,7 @@ import '../styles/About.css';
 import { Row, Col, Button, Card, Form } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { configureAWS, deleteImages, extractionValue } from '../components/common/aws/awsServices';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ const ProfilePage = () => {
   // 서버 API 주소를 저장
   const apiUrl = 'http://localhost:3300/profiles';
   const [profiles, setProfiles] = useState([]);
+  const [file, setFile] = useState(null);
+  const [newImage, setNewImage] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -32,18 +35,22 @@ const ProfilePage = () => {
 
   // 프로필 수정
   const profileEdit = (index, field, value) => {
-    const newProfiles = [...profiles];
-    newProfiles[index][field] = value;
-    setProfiles(newProfiles);
+    setProfiles(profiles.map((profile, i) => {
+      if (i === index) {
+        return { ...profile, [field]: value };
+      }
+      return profile;
+    }));
   };
 
   // 프로필 추가
   const addProfile = async () => {
-    const newProfile = { name: '', image: '', description: '' };
+    const newProfile = { name: '', image: newImage, description: '' };
     const response = await axios.post(apiUrl, newProfile);
     setProfiles([...profiles, response.data]);
     setEditMode([...editMode, true]);
-  };
+    setNewImage(null);
+  };s
 
   // 프로필 삭제
   const deleteProfile = async (index) => {
@@ -53,6 +60,26 @@ const ProfilePage = () => {
     const newEditMode = editMode.filter((_, i) => i !== index);
     setEditMode(newEditMode);
   };
+
+  const imageHandler = useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute("accept", "image/*");
+    input.click();
+  
+    input.onchange = async () => {
+      const file = input.files[0];
+      const formData = new FormData();
+      formData.append('image', file);
+  
+      try {
+        const { imageURL } = await getImageUrl(formData, 'admin', 'images');
+        setNewImage(imageURL);
+      } catch (error) {
+        console.log(error.message);
+      }
+    };
+  }, []);
 
   // 프로필 페이지 렌더링
   return (
@@ -73,8 +100,8 @@ const ProfilePage = () => {
                 <input
                   type="text"
                   className="form-control mb-2"
-                  value={profile.image}
-                  onChange={(e) => profileEdit(index, 'image', e.target.value)}
+                  value={profile.link}
+                  onChange={(e) => profileEdit(index, 'link', e.target.value)}
                 />
                 <textarea
                   className="form-control mb-2"
@@ -103,6 +130,7 @@ const ProfilePage = () => {
       ))}
       {/* // 프로필 추가 버튼 */}
       <div className="text-center mt-4">
+        <input type="file" onChange={imageHandler} />
         <Button variant="success" size="sm" onClick={addProfile}>
           프로필 추가
         </Button>
