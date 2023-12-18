@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import '../styles/About.css';
 import { Row, Col, Button, Card, Form } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { configureAWS, deleteImages, extractionValue } from '../components/common/aws/awsServices';
+import { getImageUrl, configureAWS, deleteImages, extractionValue } from '../components/common/aws/awsServices';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('profiles'));
   const [editMode, setEditMode] = useState([]);
   // 서버 API 주소를 저장
   const apiUrl = 'http://localhost:3300/profiles';
@@ -15,12 +16,7 @@ const ProfilePage = () => {
   const [newImage, setNewImage] = useState(null);
 
   useEffect(() => {
-    async function fetchData() {
-      const response = await axios.get(apiUrl);
-      setProfiles(response.data);
-      setEditMode(Array(response.data.length).fill(false));
-    }
-    fetchData();
+    configureAWS();
   }, []);
 
   // 서버에 변경 사항 저장
@@ -50,7 +46,7 @@ const ProfilePage = () => {
     setProfiles([...profiles, response.data]);
     setEditMode([...editMode, true]);
     setNewImage(null);
-  };s
+  };
 
   // 프로필 삭제
   const deleteProfile = async (index) => {
@@ -66,18 +62,22 @@ const ProfilePage = () => {
     input.setAttribute('type', 'file');
     input.setAttribute("accept", "image/*");
     input.click();
+    
   
     input.onchange = async () => {
       const file = input.files[0];
       const formData = new FormData();
       formData.append('image', file);
-  
+      let fileName = '';
       try {
-        const { imageURL } = await getImageUrl(formData, 'admin', 'images');
+        const { imageURL, keyName } = await getImageUrl(formData, 'admin', 'images');
         setNewImage(imageURL);
+        fileName = keyName;
       } catch (error) {
         console.log(error.message);
       }
+      console.log(fileName);
+      setFile(prevFile => [...prevFile, fileName]);
     };
   }, []);
 
